@@ -1,6 +1,6 @@
 {
     "name": "@zachsents/fire-query",
-    "version": "1.0.6",
+    "version": "1.0.11",
     "description": "",
     "main": "index.js",
     "types": "dist/index.d.ts",
@@ -8,8 +8,13 @@
         "test": "jest",
         "compile": "tsc"
     },
-    "keywords": [],
-    "author": "",
+    "keywords": [
+        "firebase",
+        "react",
+        "react-query",
+        "firestore"
+    ],
+    "author": "zachsents",
     "license": "ISC",
     "dependencies": {
         "firebase": "^10.4.0",

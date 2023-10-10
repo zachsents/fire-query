@@ -1,7 +1,7 @@
 import { act, render, waitFor } from "@testing-library/react"
-import TestApp from "./TestApp.js"
-import { useAddDocument, useCollectionQuery } from "../collections"
 import { where } from "firebase/firestore"
+import { useAddDocument, useCollectionQuery } from "../collections"
+import TestApp from "./TestApp.js"
 
 const subscriptions = {}
 
@@ -40,7 +40,7 @@ jest.mock("firebase/firestore", () => {
             id: pathSegments.at(-1),
             path: pathSegments.join("/"),
         })),
-        query: jest.fn(collectionRef => collectionRef),
+        query: jest.fn(collectionRef => ({ ...collectionRef, _query: true })),
         getDocs: jest.fn(ref => Promise.resolve(dummyQuerySnapshot(ref))),
         onSnapshot: jest.fn((ref, callback) => {
             subscriptions[ref.path] ??= new Set()

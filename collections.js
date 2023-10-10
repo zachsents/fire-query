@@ -32,7 +32,7 @@ export function useCollectionQueryReference(pathSegments, constraints) {
             return
 
         if (Array.isArray(constraints) && constraints.length > 0) {
-            if (constraints.every(constraint => constraint instanceof QueryConstraint))
+            if (constraints.every(constraint => constraint))
                 return query(collection(firestore, ...pathSegments), ...constraints)
             return
         }
@@ -110,7 +110,7 @@ export function useCollectionQueryFromPath(pathSegments, constraints, _collectio
 export function useCollectionQueryFromReference(reference, _collectionQueryOptions, _reactQueryOptions) {
 
     const collectionQueryOptions = useCollectionQueryOptions(_collectionQueryOptions)
-    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference?.path, collectionQueryOptions])
+    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference, collectionQueryOptions])
 
     if (collectionQueryOptions.subscribe) {
         const queryClient = useQueryClient()
