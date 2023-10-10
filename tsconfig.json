@@ -1,0 +1,17 @@
+{
+    "include": [
+        "**/*"
+    ],
+    "exclude": [
+        "tests/**/*",
+        "dist/**/*",
+        "node_modules/**/*"
+    ],
+    "compilerOptions": {
+        "allowJs": true,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "outDir": "dist",
+        "declarationMap": true
+    }
+}
