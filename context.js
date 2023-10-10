@@ -9,15 +9,15 @@ const FirebaseContext = createContext(uninitialized)
  * @property {import("firebase/firestore").Firestore} firestore
  * @property {import("firebase/auth").Auth} auth
  * @property {import("./documents.js").UseDocumentOptions} documentOptions
- * @property {import("react-query").UseQueryOptions} queryOptions
+ * @property {import("./collections.js").UseCollectionQueryOptions} collectionQueryOptions
  */
 
 /**
  * @param {{ children: any } & FirebaseContextValue} props
  */
-export function FirebaseProvider({ children, firestore, auth, documentOptions, queryOptions }) {
+export function FirebaseProvider({ children, ...props }) {
     return (
-        <FirebaseContext.Provider value={{ firestore, auth, documentOptions, queryOptions }}>
+        <FirebaseContext.Provider value={props}>
             {children}
         </FirebaseContext.Provider>
     )

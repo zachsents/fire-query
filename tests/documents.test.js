@@ -1,10 +1,32 @@
-import { render, waitFor } from "@testing-library/react"
+import { act, render, waitFor } from "@testing-library/react"
 import { useDocument } from "../documents"
 import TestApp from "./TestApp.js"
 
+const subscriptions = {}
+
+let database = {
+    "test-collection/fixed": {
+        a: 5,
+        b: 6,
+    },
+    "test-collection/update": {
+        a: 24,
+        b: 609,
+    },
+    "test-collection/set": {
+        a: 24,
+        b: 609,
+    },
+    "test-collection/delete": {
+        hey: "man",
+    },
+}
+
 const dummySnapshot = docRef => ({
     id: docRef.id,
-    data: () => ({ a: 5, rand: Math.random().toString(16).substring(2, 8) }),
+    data: () => database[docRef.path],
+    exists: () => !!database[docRef.path],
+    snapshotId: Math.random().toString(16).substring(2, 8),
 })
 
 jest.mock("firebase/firestore", () => {
@@ -16,79 +38,119 @@ jest.mock("firebase/firestore", () => {
         })),
         getDoc: jest.fn(docRef => Promise.resolve(dummySnapshot(docRef))),
         onSnapshot: jest.fn((docRef, callback) => {
-
-            setTimeout(() => callback(dummySnapshot(docRef)), 50)
-            setTimeout(() => callback(dummySnapshot(docRef)), 200)
-
-            return () => { }
+            subscriptions[docRef.path] ??= new Set()
+            const func = () => callback(dummySnapshot(docRef))
+            subscriptions[docRef.path].add(func)
+            return () => subscriptions[docRef.path].delete(func)
+        }),
+        updateDoc: jest.fn((docRef, data) => {
+            database[docRef.path] = {
+                ...database[docRef.path],
+                ...data,
+            }
+            subscriptions[docRef.path]?.forEach(func => func())
+        }),
+        setDoc: jest.fn((docRef, data, options = {}) => {
+            database[docRef.path] = {
+                ...options.merge && database[docRef.path],
+                ...data,
+            }
+            subscriptions[docRef.path]?.forEach(func => func())
+        }),
+        deleteDoc: jest.fn(docRef => {
+            delete database[docRef.path]
+            subscriptions[docRef.path]?.forEach(func => func())
         }),
     }
 })
 
 
-test("document retrieval", async () => {
+test("retrieval", async () => {
 
+    /** @type {import("../documents.js").UseDocumentResult} */
     let result
     function TestComponent() {
-        result = useDocument(["test-collection", "test-document"], { subscribe: false })
+        result = useDocument(["test-collection", "fixed"], { subscribe: false })
     }
     render(<TestApp>
         <TestComponent />
     </TestApp>)
 
-    await waitFor(() => {
-        expect(result.isLoading).toBe(false)
-    })
-
+    await waitFor(() => expect(result.isLoading).toBe(false))
     expect(result.data).not.toBeUndefined()
-
-    console.log(result.data)
 })
 
-test("document subscription", async () => {
+test("undefined doc ID", async () => {
 
+    /** @type {import("../documents.js").UseDocumentResult} */
     let result
     function TestComponent() {
-        result = useDocument(["test-collection", "test-document"], { subscribe: true })
+        result = useDocument(["test-collection", undefined], { subscribe: false })
     }
     render(<TestApp>
         <TestComponent />
     </TestApp>)
 
-    await waitFor(() => {
-        expect(result.isLoading).toBe(false)
-    })
-    expect(result.data).not.toBeUndefined()
-
-    const firstData = result.data
-    console.log(result.data)
-
-    await waitFor(() => {
-        expect(result.data).not.toEqual(firstData)
-    })
-    expect(result.data).not.toBeUndefined()
-
-    console.log(result.data)
-})
-
-test("undefined document subscription", async () => {
-    let result
-    function TestComponent() {
-        result = useDocument(["test-collection", undefined], { subscribe: true })
-    }
-    render(<TestApp>
-        <TestComponent />
-    </TestApp>)
-
-    await waitFor(() => {
-        expect(result.isLoading).toBe(false)
-    })
-
+    await waitFor(() => expect(result.isLoading).toBe(false))
     expect(result.data).toBeUndefined()
 })
 
-// TO DO: test undefined case
-// add collection stuff
-// add updating stuff
-// add query stuff
-// delete firebase-init file and test-collection in prod db
+test("subscription & updating", async () => {
+
+    /** @type {import("../documents.js").UseDocumentResult} */
+    let result
+    function TestComponent() {
+        result = useDocument(["test-collection", "update"], { subscribe: true })
+    }
+    render(<TestApp>
+        <TestComponent />
+    </TestApp>)
+
+    await waitFor(() => expect(result.isLoading).toBe(false))
+    act(() => result.update.mutate({ a: 7 }))
+    await waitFor(() => expect(result.data.a).toBe(7))
+})
+
+test("subscription & setting", async () => {
+
+    /** @type {import("../documents.js").UseDocumentResult} */
+    let result
+    function TestComponent() {
+        result = useDocument(["test-collection", "set"], { subscribe: true })
+    }
+    render(<TestApp>
+        <TestComponent />
+    </TestApp>)
+
+    await waitFor(() => expect(result.isLoading).toBe(false))
+
+    // set - no merge
+    act(() => result.set.mutate({ data: { a: 7 } }))
+    await waitFor(() => expect(result.data.a).toBe(7))
+    expect(result.data.b).toBeUndefined()
+
+    // set - merge
+    act(() => result.set.mutate({
+        data: { b: 8 },
+        options: { merge: true },
+    }))
+    await waitFor(() => expect(result.data.b).toBe(8))
+    expect(result.data.a).toBe(7)
+})
+
+test("subscription & deleting", async () => {
+
+    /** @type {import("../documents.js").UseDocumentResult} */
+    let result
+    function TestComponent() {
+        result = useDocument(["test-collection", "delete"], { subscribe: true })
+    }
+    render(<TestApp>
+        <TestComponent />
+    </TestApp>)
+
+    await waitFor(() => expect(result.isLoading).toBe(false))
+
+    act(() => result.delete.mutate())
+    await waitFor(() => expect(result.data).toBeUndefined())
+})

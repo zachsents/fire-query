@@ -1,8 +1,7 @@
-import { useFirebaseContext } from "./context.js"
 
 
 /** @type {import("react-query").UseQueryOptions} */
-const DEFAULT_QUERY_OPTIONS = {
+const DEFAULT_REACT_QUERY_OPTIONS = {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
@@ -13,10 +12,9 @@ const DEFAULT_QUERY_OPTIONS = {
  * @param {any[]} queryKey
  * @return {import("react-query").UseQueryOptions} 
  */
-export function useQueryOptions(options, queryKey) {
+export function useReactQueryOptions(options, queryKey) {
     return {
-        ...DEFAULT_QUERY_OPTIONS,
-        ...useFirebaseContext().documentOptions,
+        ...DEFAULT_REACT_QUERY_OPTIONS,
         queryKey,
         ...options,
     }
