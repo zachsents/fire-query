@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react"
+import { createContext, createElement, useContext } from "react"
 
 const uninitialized = { _notInitialized: true }
 
@@ -16,10 +16,10 @@ const FirebaseContext = createContext(uninitialized)
  * @param {{ children: any } & FirebaseContextValue} props
  */
 export function FirebaseProvider({ children, ...props }) {
-    return (
-        <FirebaseContext.Provider value={props}>
-            {children}
-        </FirebaseContext.Provider>
+    return createElement(
+        FirebaseContext.Provider,
+        { value: props },
+        children
     )
 }
 
