@@ -5,6 +5,8 @@
     "exclude": [
         "tests/**/*",
         "dist/**/*",
+        "babel.config.cjs",
+        "jest.config.cjs",
         "node_modules/**/*"
     ],
     "compilerOptions": {
