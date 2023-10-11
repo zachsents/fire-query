@@ -1,5 +1,5 @@
 import { CollectionReference, Query, QueryConstraint, addDoc, collection, getDocs, onSnapshot, query } from "firebase/firestore"
-import objectHash from "object-hash"
+import objectHash from "hash-it"
 import { useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "react-query"
 import { useFirebaseContext } from "./context.js"
@@ -18,7 +18,7 @@ export function useCollectionReference(...pathSegments) {
 
         if (Array.isArray(pathSegments[0]))
             return collection(firestore, ...pathSegments[0])
-    }, [firestore, objectHash(pathSegments)])
+    }, [objectHash(pathSegments)])
 }
 
 /**
@@ -38,7 +38,7 @@ export function useCollectionQueryReference(pathSegments, constraints) {
         }
 
         return collection(firestore, ...pathSegments)
-    }, [firestore, pathSegments && objectHash(pathSegments), constraints && objectHash(constraints)])
+    }, [objectHash(pathSegments), objectHash(constraints)])
 }
 
 
@@ -110,32 +110,27 @@ export function useCollectionQueryFromPath(pathSegments, constraints, _collectio
 export function useCollectionQueryFromReference(reference, _collectionQueryOptions, _reactQueryOptions) {
 
     const collectionQueryOptions = useCollectionQueryOptions(_collectionQueryOptions)
-    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference, collectionQueryOptions])
+    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference?._query])
 
-    if (collectionQueryOptions.subscribe) {
-        const queryClient = useQueryClient()
+    const queryClient = useQueryClient()
 
-        useEffect(() => {
-            if (reference) {
-                const unsubscribe = onSnapshot(reference, snapshot => {
-                    queryClient.setQueryData(
-                        reactQueryOptions.queryKey,
-                        collectionQueryOptions.raw ? snapshot : formatQuerySnapshot(snapshot),
-                    )
-                })
-                return unsubscribe
-            }
-        }, [queryClient, reactQueryOptions.queryKey, reference?.path, collectionQueryOptions.raw])
-    }
+    useEffect(() => {
+        if (collectionQueryOptions.subscribe && reference) {
+            return onSnapshot(reference, snapshot => {
+                queryClient.setQueryData(reactQueryOptions.queryKey, snapshot)
+            })
+        }
+    }, [collectionQueryOptions.subscribe, objectHash(reference?._query), objectHash(reactQueryOptions.queryKey)])
 
-    return useQuery({
+    const { data: snapshot, ...reactQuery } = useQuery({
         ...reactQueryOptions,
-        queryFn: async () => {
-            if (!reference) return
-            const snapshot = await getDocs(reference)
-            return collectionQueryOptions.raw ? snapshot : formatQuerySnapshot(snapshot)
-        },
+        queryFn: () => reference ? getDocs(reference) : undefined,
     })
+
+    return {
+        ...reactQuery,
+        data: collectionQueryOptions.raw ? snapshot : (snapshot && formatQuerySnapshot(snapshot)),
+    }
 }
 
 
@@ -151,7 +146,7 @@ export function formatQuerySnapshot(snapshot) {
 /**
  * @param {CollectionReference | string[]} referenceOrPathSegments
  */
-export function useAddDocument(referenceOrPathSegments,) {
+export function useAddDocument(referenceOrPathSegments) {
     const reference = Array.isArray(referenceOrPathSegments) ?
         useCollectionReference(...referenceOrPathSegments) :
         referenceOrPathSegments

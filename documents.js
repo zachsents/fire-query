@@ -1,5 +1,5 @@
 import { DocumentReference, deleteDoc, doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore"
-import objectHash from "object-hash"
+import objectHash from "hash-it"
 import { useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "react-query"
 import { useFirebaseContext } from "./context.js"
@@ -14,7 +14,7 @@ export function useDocumentReference(...pathSegments) {
 
         if (Array.isArray(pathSegments[0]))
             return doc(firestore, ...pathSegments[0])
-    }, [firestore, objectHash(pathSegments)])
+    }, [objectHash(pathSegments)])
 }
 
 
@@ -90,33 +90,27 @@ export function useDocumentFromPath(pathSegments, _documentOptions, _reactQueryO
 export function useDocumentFromReference(reference, _documentOptions, _reactQueryOptions) {
 
     const documentOptions = useDocumentOptions(_documentOptions)
-    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference?.path, documentOptions])
+    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference?.path])
 
-    if (documentOptions.subscribe) {
-        const queryClient = useQueryClient()
+    const queryClient = useQueryClient()
 
-        useEffect(() => {
-            if (reference) {
-                const unsubscribe = onSnapshot(reference, snapshot => {
-                    queryClient.setQueryData(
-                        reactQueryOptions.queryKey,
-                        documentOptions.raw ? snapshot : formatDocumentSnapshot(snapshot),
-                    )
-                })
-                return unsubscribe
-            }
-        }, [queryClient, reactQueryOptions.queryKey, reference?.path, documentOptions.raw])
-    }
+    useEffect(() => {
+        if (documentOptions.subscribe && reference) {
+            return onSnapshot(reference, snapshot => {
+                queryClient.setQueryData(reactQueryOptions.queryKey, snapshot)
+            })
+        }
+    }, [reference?.path, documentOptions.subscribe, objectHash(reactQueryOptions.queryKey)])
+
+    const { data: snapshot, ...reactQuery } = useQuery({
+        ...reactQueryOptions,
+        queryFn: () => reference ? getDoc(reference) : undefined,
+        enabled: documentOptions.fetch,
+    })
 
     return {
-        ...documentOptions.fetch && useQuery({
-            ...reactQueryOptions,
-            queryFn: async () => {
-                if (!reference) return
-                const snapshot = await getDoc(reference)
-                return documentOptions.raw ? snapshot : formatDocumentSnapshot(snapshot)
-            },
-        }),
+        data: documentOptions.raw ? snapshot : (snapshot && formatDocumentSnapshot(snapshot)),
+        ...documentOptions.fetch && reactQuery,
         ...documentOptions.includeMutators && {
             update: useMutation({
                 mutationFn: data => reference && updateDoc(reference, data),
