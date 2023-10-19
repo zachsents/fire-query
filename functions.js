@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "react-query"
-import { useReactQueryOptions } from "./react-query"
-import { useFirebaseContext } from "./context"
+import { useReactQueryOptions } from "./react-query.js"
+import { useFirebaseContext } from "./context.js"
 import { httpsCallable } from "firebase/functions"
 
 
