@@ -8,6 +8,7 @@ const FirebaseContext = createContext(uninitialized)
  * @typedef {object} FirebaseContextValue
  * @property {import("firebase/firestore").Firestore} firestore
  * @property {import("firebase/auth").Auth} auth
+ * @property {import("firebase/functions").Functions} functions
  * @property {import("./documents.js").UseDocumentOptions} documentOptions
  * @property {import("./collections.js").UseCollectionQueryOptions} collectionQueryOptions
  */
