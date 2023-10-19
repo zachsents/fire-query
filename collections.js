@@ -1,4 +1,4 @@
-import { CollectionReference, Query, QueryConstraint, addDoc, collection, getDocs, onSnapshot, query } from "firebase/firestore"
+import { CollectionReference, Query, QueryConstraint, addDoc, collection, getCountFromServer, getDocs, onSnapshot, query } from "firebase/firestore"
 import objectHash from "hash-it"
 import { useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "react-query"
@@ -46,6 +46,9 @@ export function useCollectionQueryReference(pathSegments, constraints) {
  * @typedef {object} UseCollectionQueryOptions
  * @property {boolean} [subscribe=true]
  * @property {boolean} [raw=false]
+ * @property {"count"} [aggregation] Specifies if an aggregation should be performed on the 
+ * query. Currently only "count" is supported. `subscribe` will be ignored if `aggregation` 
+ * is set.
  */
 
 /** @type {UseCollectionQueryOptions} */
@@ -110,12 +113,12 @@ export function useCollectionQueryFromPath(pathSegments, constraints, _collectio
 export function useCollectionQueryFromReference(reference, _collectionQueryOptions, _reactQueryOptions) {
 
     const collectionQueryOptions = useCollectionQueryOptions(_collectionQueryOptions)
-    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference?._query])
+    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference?._query, collectionQueryOptions.aggregation])
 
     const queryClient = useQueryClient()
 
     useEffect(() => {
-        if (collectionQueryOptions.subscribe && reference) {
+        if (collectionQueryOptions.subscribe && reference && !collectionQueryOptions.aggregation) {
             return onSnapshot(reference, snapshot => {
                 queryClient.setQueryData(reactQueryOptions.queryKey, snapshot)
             })
@@ -124,12 +127,38 @@ export function useCollectionQueryFromReference(reference, _collectionQueryOptio
 
     const { data: snapshot, ...reactQuery } = useQuery({
         ...reactQueryOptions,
-        queryFn: () => reference ? getDocs(reference) : undefined,
+        queryFn: () => {
+            if (!reference)
+                return
+
+            switch (collectionQueryOptions.aggregation) {
+                case undefined:
+                    return getDocs(reference)
+                case "count":
+                    return getCountFromServer(reference)
+                default:
+                    throw new Error(`Aggregation "${collectionQueryOptions.aggregation}" is not supported.`)
+            }
+        },
     })
+
+    let returnData
+    if (collectionQueryOptions.raw || !snapshot)
+        returnData = snapshot
+    else {
+        switch (collectionQueryOptions.aggregation) {
+            case undefined:
+                returnData = formatQuerySnapshot(snapshot)
+                break
+            case "count":
+                returnData = snapshot.data().count
+                break
+        }
+    }
 
     return {
         ...reactQuery,
-        data: collectionQueryOptions.raw ? snapshot : (snapshot && formatQuerySnapshot(snapshot)),
+        data: returnData,
     }
 }
 

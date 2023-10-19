@@ -39,9 +39,13 @@ jest.mock("firebase/firestore", () => {
         collection: jest.fn((_, ...pathSegments) => ({
             id: pathSegments.at(-1),
             path: pathSegments.join("/"),
+            _query: pathSegments.join("/"),
         })),
-        query: jest.fn(collectionRef => ({ ...collectionRef, _query: true })),
+        query: jest.fn(collectionRef => ({ ...collectionRef, _query: collectionRef._query })),
         getDocs: jest.fn(ref => Promise.resolve(dummyQuerySnapshot(ref))),
+        getCountFromServer: jest.fn(ref => Promise.resolve({
+            data: () => ({ count: Object.keys(database[ref.id]).length })
+        })),
         onSnapshot: jest.fn((ref, callback) => {
             subscriptions[ref.path] ??= new Set()
             const func = () => callback(dummyQuerySnapshot(ref))
@@ -121,4 +125,22 @@ test("query retrieval", async () => {
 
     await waitFor(() => expect(result.isLoading).toBe(false))
     expect(result.data).toBeTruthy()
+})
+
+test("count query", async () => {
+
+    /** @type {import("../collections.js").UseCollectionQueryResult} */
+    let result
+    function TestComponent() {
+        result = useCollectionQuery(["test-collection"], undefined, {
+            subscribe: false,
+            aggregation: "count",
+        })
+    }
+    render(<TestApp>
+        <TestComponent />
+    </TestApp>)
+
+    await waitFor(() => expect(result.isLoading).toBe(false))
+    expect(result.data).toBe(1)
 })
