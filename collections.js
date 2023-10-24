@@ -188,3 +188,46 @@ export function useAddDocument(referenceOrPathSegments) {
         mutationKey: ["add", reference?.path],
     })
 }
+
+
+/**
+ * @param {CollectionReference | string[]} referenceOrPathSegments
+ * @param {object} options
+ * @param {string} [options.errorProp="error"]
+ * @param {string} [options.successProp]
+ * @param {(data: any, { resolve, reject, unsubscribe }: { resolve: (value: any) => void, reject: (reason?: any) => void, unsubscribe: () => void }) => void} [options.onSnapshotData]
+ */
+export function useAddAndWaitForSnapshot(referenceOrPathSegments, {
+    errorProp = "error",
+    successProp,
+    onSnapshotData,
+} = {}) {
+
+    const collectionReference = Array.isArray(referenceOrPathSegments) ?
+        useCollectionReference(...referenceOrPathSegments) :
+        referenceOrPathSegments
+
+    return useMutation({
+        mutationFn: async (data) => {
+            const newDocRef = await addDoc(collectionReference, data)
+
+            return await new Promise((resolve, reject) => {
+                const unsubscribe = onSnapshot(newDocRef, snapshot => {
+                    const snapData = snapshot.data()
+
+                    onSnapshotData?.(snapData, { resolve, reject, unsubscribe })
+
+                    if (errorProp && errorProp in snapData) {
+                        unsubscribe()
+                        reject(snapData[errorProp])
+                    }
+
+                    if (successProp && successProp in snapData) {
+                        unsubscribe
+                        resolve(snapData)
+                    }
+                })
+            })
+        }
+    })
+}
