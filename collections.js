@@ -113,7 +113,7 @@ export function useCollectionQueryFromPath(pathSegments, constraints, _collectio
 export function useCollectionQueryFromReference(reference, _collectionQueryOptions, _reactQueryOptions) {
 
     const collectionQueryOptions = useCollectionQueryOptions(_collectionQueryOptions)
-    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [reference?._query, collectionQueryOptions.aggregation])
+    const reactQueryOptions = useReactQueryOptions(_reactQueryOptions, [objectHash(reference?._query), collectionQueryOptions.aggregation])
 
     const queryClient = useQueryClient()
 
